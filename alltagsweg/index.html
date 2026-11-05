@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Mein Alltagsweg</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Einen passenden Alltagsweg zu Fuss oder mit dem Velo finden und ein kleines Wochenziel festhalten.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: one narrow column (max 560px), app header with progress, cards only where they set something apart */
+:root{
+  --bg:#F6F1E8; --surface:#FFFFFF; --ink:#14252A; --muted:#4A5D61; --line:#CBD9D7;
+  --petrol:#0F3B44; --petrol-2:#1E5A64; --petrol-pale:#DCE8E6; --apricot:#E07B4C; --apricot-pale:#F7DCCB; --apricot-ink:#9C431A;
+  --on-petrol:#F6F1E8; --ok:#2E7D5B; --warn:#9C431A;
+  --display:'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --body:'IBM Plex Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1F23; --surface:#16302F; --ink:#E9EFEC; --muted:#A9BCBA; --line:#2C4A4C;
+  --petrol:#8FC5C4; --petrol-2:#7FB3B3; --petrol-pale:#1E3C3E; --apricot:#E8875A; --apricot-pale:#3A2A22; --apricot-ink:#F2B892;
+  --on-petrol:#0E1F23; --ok:#7CC9A3; --warn:#F2B892; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1F23; --surface:#16302F; --ink:#E9EFEC; --muted:#A9BCBA; --line:#2C4A4C;
+  --petrol:#8FC5C4; --petrol-2:#7FB3B3; --petrol-pale:#1E3C3E; --apricot:#E8875A; --apricot-pale:#3A2A22; --apricot-ink:#F2B892;
+  --on-petrol:#0E1F23; --ok:#7CC9A3; --warn:#F2B892; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 10px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--petrol);font-size:15px;background:none;border:0;padding:0;font-family:inherit;cursor:pointer}
+.stepinfo{font-size:13px;color:var(--muted)}
+.bar{display:flex;gap:4px;margin-bottom:18px}
+.bar span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.bar span.on{background:var(--apricot)}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(26px,7vw,32px);line-height:1.15;margin:6px 0 10px;color:var(--petrol);text-wrap:balance}
+h2{font-size:17px;margin:0 0 8px;color:var(--petrol)}
+h3{font-size:15px;margin:0 0 6px;color:var(--petrol)}
+p{margin:0 0 12px}
+.lead{color:var(--muted);font-size:16px}
+.small{font-size:13.5px;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.note{background:var(--petrol-pale);border-radius:var(--r);padding:12px 14px;font-size:14px}
+.note.warm{background:var(--apricot-pale)}
+.field{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-weight:600;font-size:15px}
+input[type=text],input[type=number],textarea,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px 12px;width:100%}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--apricot);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:15px;min-height:44px;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;text-align:left}
+.chip[aria-pressed="true"]{border-color:var(--apricot);background:var(--apricot-pale);font-weight:600}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{font:inherit;font-size:16px;min-height:52px;padding:12px 16px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px}
+.opt[aria-pressed="true"]{border-color:var(--apricot);background:var(--apricot-pale);font-weight:600}
+.opt .tick{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--petrol-2);flex:none;display:grid;place-items:center}
+.opt[aria-pressed="true"] .tick{background:var(--apricot);border-color:var(--apricot)}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.btn{font:inherit;font-weight:600;font-size:16px;min-height:52px;padding:12px 18px;border-radius:12px;border:0;cursor:pointer;background:var(--petrol);color:var(--on-petrol);width:100%}
+.btn.sec{background:transparent;color:var(--petrol);border:1.5px solid var(--petrol-2)}
+.btn.ghost{background:transparent;color:var(--petrol);border:0;min-height:44px;width:auto;padding:8px 4px;text-decoration:underline;text-underline-offset:3px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.navrow{display:flex;gap:10px;margin-top:22px}
+.navrow .btn.sec{flex:0 0 34%}
+.ac{position:relative}
+.aclist{list-style:none;margin:4px 0 0;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto}
+.aclist button{font:inherit;width:100%;text-align:left;background:none;border:0;padding:10px;border-radius:8px;color:var(--ink);cursor:pointer;min-height:44px}
+.aclist button:hover,.aclist button:focus-visible{background:var(--petrol-pale)}
+.picked{font-size:14px;color:var(--ok);font-weight:600}
+.map{height:280px;border-radius:var(--r);border:1px solid var(--line);overflow:hidden;background:var(--petrol-pale)}
+.map.small{height:220px}
+.routecard{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:var(--ink);width:100%;display:block}
+.routecard[aria-pressed="true"]{border-color:var(--apricot);box-shadow:0 0 0 2px var(--apricot) inset}
+.rmeta{display:flex;flex-wrap:wrap;gap:6px 16px;font-variant-numeric:tabular-nums;font-size:15px;margin:6px 0}
+.rmeta b{font-size:18px;color:var(--petrol)}
+.badge{display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:999px;background:var(--apricot);color:#fff}
+:root[data-theme="dark"] .badge{color:#0E1F23}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .badge{color:#0E1F23}}
+.swatch{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.sentence{font-family:var(--display);font-size:21px;line-height:1.35;color:var(--petrol)}
+.sentence em{font-style:normal;background:var(--apricot-pale);padding:0 4px;border-radius:4px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.stat b{display:block;font-size:24px;color:var(--petrol);font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{font-size:13.5px;color:var(--muted)}
+.hero{background:var(--petrol);color:var(--on-petrol);border-radius:16px;padding:18px}
+.hero h1{color:var(--on-petrol);margin-top:0}
+.hero .small{color:var(--on-petrol);opacity:.85}
+.weekdots{display:flex;gap:8px;margin:8px 0}
+.weekdots i{width:22px;height:22px;border-radius:50%;border:2px solid var(--on-petrol);opacity:.9}
+.weekdots i.on{background:var(--apricot);border-color:var(--apricot);opacity:1}
+details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:0 16px}
+details>summary{cursor:pointer;font-weight:600;color:var(--petrol);min-height:48px;display:flex;align-items:center;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"+";margin-left:auto;font-size:20px;color:var(--apricot)}
+details[open]>summary::after{content:"–"}
+details>div{padding-bottom:14px}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px;margin:8px 0}
+.chain span{background:var(--petrol-pale);border-radius:8px;padding:6px 10px}
+.chain span.end{background:var(--petrol);color:var(--on-petrol)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--petrol);color:var(--on-petrol);padding:12px 18px;border-radius:12px;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:1000}
+.err{color:var(--warn);font-weight:600;font-size:14.5px}
+.demo{border:2px dashed var(--apricot);border-radius:var(--r);padding:10px 12px;font-weight:600;color:var(--apricot-ink);background:var(--apricot-pale);font-size:14px}
+footer.foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px}
+.list{margin:0;padding-left:20px}
+.list li{margin-bottom:6px}
+.trip{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.trip:last-child{border-bottom:0}
+.leaflet-container{font-family:var(--body)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <button class="brand" type="button" data-act="home" aria-label="Zur Startseite">
+      <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--petrol)"/><path d="M7 21 C 11 21, 10 13, 15 13 S 19 8, 21 7" fill="none" stroke="var(--apricot)" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="1 4"/><circle cx="21" cy="7" r="2.6" fill="var(--bg)"/></svg>
+      Mein Alltagsweg
+    </button>
+    <span class="stepinfo" id="stepinfo"></span>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <footer class="foot">
+    <button class="btn ghost" type="button" data-act="go" data-to="team">Für das Praxisteam</button>
+    <button class="btn ghost" type="button" data-act="go" data-to="privacy">Datenschutz &amp; Quellen</button>
+    <button class="btn ghost" type="button" data-act="go" data-to="wipe">Eingaben löschen</button>
+  </footer>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+'use strict';
+/* ---------- Konstanten ---------- */
+var KEY='alltagsweg.v1';
+var GOALS=[
+  {id:'bewegung',t:'Mehr Bewegung unterbringen'},
+  {id:'leichter',t:'Alltagswege leichter schaffen'},
+  {id:'draussen',t:'Einen angenehmen Weg draussen finden'},
+  {id:'auto',t:'Weniger mit dem Auto unterwegs sein'}
+];
+var BISHER=[
+  {id:'auto',t:'Mit dem Auto'},{id:'oev',t:'Mit dem ÖV'},{id:'aktiv',t:'Bereits zu Fuss oder per Velo'},
+  {id:'mix',t:'Unterschiedlich'},{id:'neu',t:'Zusätzlicher Weg (bisher nicht)'}
+];
+var DAYS=['Mo','Di','Mi','Do','Fr','Sa','So'];
+var DAYNAMES=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+var ICSDAY=['MO','TU','WE','TH','FR','SA','SU'];
+var TIMES=[{id:'morgen',t:'Morgens',h:8},{id:'mittag',t:'Mittags',h:12},{id:'nachmittag',t:'Nachmittags',h:15},{id:'abend',t:'Abends',h:18},{id:'flex',t:'Flexibel',h:9}];
+var SUPPORT=['Begleitung durch eine vertraute Person','Erinnerung im Kalender','Passende Tasche oder Rucksack','Bequeme Schuhe bereitstellen'];
+var DEMO={demo:true,routes:[
+  {distance:1180,duration:16*60,ascent:12,descent:9,coords:[[0,0],[0.2,0.15],[0.45,0.2],[0.6,0.45],[0.85,0.55],[1,0.8]]},
+  {distance:1320,duration:18*60,ascent:4,descent:3,coords:[[0,0],[0.1,0.4],[0.3,0.6],[0.6,0.7],[0.85,0.72],[1,0.8]]}
+]};
+
+/* ---------- Zustand ---------- */
+var saved=load();
+var S={view:saved&&saved.plan?'home':'start',goals:[],ownGoal:'',start:null,ziel:null,mode:'foot',time:15,timeOwn:'',prefs:['kurz'],bisher:null,
+  routes:null,chosen:0,demo:false,routeErr:'',loading:false,
+  plan:null,editPlan:null,trips:[],paused:[],confirmOpen:false,trip:{round:false,replaced:null,when:'heute'},wipeArmed:false};
+if(saved){S.plan=saved.plan||null;S.trips=saved.trips||[];S.paused=saved.paused||[];}
+
+function load(){try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({plan:S.plan,trips:S.trips,paused:S.paused}))}catch(e){}}
+function wipe(){try{localStorage.removeItem(KEY)}catch(e){} S.plan=null;S.trips=[];S.paused=[];S.goals=[];S.ownGoal='';S.start=null;S.ziel=null;S.routes=null;S.bisher=null;S.prefs=['kurz'];S.mode='foot';S.time=15;}
+
+/* ---------- Hilfen ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function $(sel){return document.querySelector(sel)}
+function km(m){return m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1).replace('.',',')+' km'}
+function mins(s){return Math.max(1,Math.round(s/60))}
+function toast(t){var el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},3800)}
+function pad(n){return (n<10?'0':'')+n}
+function dayKey(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function weekKey(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return dayKey(x)}
+function shiftWeek(k,n){var p=k.split('-');var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+7*n);return dayKey(d)}
+function fetchJSON(url,ms){var c=new AbortController();var t=setTimeout(function(){c.abort()},ms||12000);
+  return fetch(url,{signal:c.signal}).then(function(r){clearTimeout(t);if(!r.ok)throw new Error('http '+r.status);return r.json()})}
+
+/* WGS84 <-> LV95 (Näherungsformeln swisstopo, Genauigkeit ~1 m) */
+function toLV95(lat,lon){var p=(lat*3600-169028.66)/10000,l=(lon*3600-26782.5)/10000;
+  return [2600072.37+211455.93*l-10938.51*l*p-0.36*l*p*p-44.54*l*l*l,
+          1200147.07+308807.95*p+3745.25*l*l+76.63*p*p-194.56*l*l*p+119.79*p*p*p]}
+function fromLV95(E,N){var y=(E-2600000)/1e6,x=(N-1200000)/1e6;
+  var l=2.6779094+4.728982*y+0.791484*y*x+0.1306*y*x*x-0.0436*y*y*y;
+  var p=16.9023892+3.238272*x-0.270978*y*y-0.002528*x*x-0.0447*y*y*x-0.0140*x*x*x;
+  return [p*100/36,l*100/36]}
+
+/* ---------- Fortschritt ---------- */
+function goalPerWeek(){return S.plan?S.plan.perWeek:1}
+function countWeek(k){return S.trips.filter(function(t){return weekKey(new Date(t.date))===k}).length}
+function isPaused(k){return S.paused.indexOf(k)>=0}
+function streak(){var cur=weekKey(new Date()),k=cur,n=0,g=goalPerWeek();
+  for(var i=0;i<156;i++){
+    if(countWeek(k)>=g){n++}
+    else if(isPaused(k)||k===cur){}
+    else break;
+    k=shiftWeek(k,-1);
+    if(S.plan&&k<weekKey(new Date(S.plan.createdAt)))break;}
+  return n}
+function weeksReached(){var seen={},g=goalPerWeek(),n=0;S.trips.forEach(function(t){var k=weekKey(new Date(t.date));seen[k]=(seen[k]||0)+1});
+  for(var k in seen){if(seen[k]>=g)n++}return n}
+function activeMinutes(){if(!S.plan)return 0;return S.trips.reduce(function(a,t){return a+(t.round?2:1)*S.plan.durMin},0)}
+function replacedCount(){return S.trips.filter(function(t){return t.replaced===true}).length}
+function avoidedKm(){if(!S.plan)return 0;return S.trips.reduce(function(a,t){return a+(t.replaced===true?(t.round?2:1)*S.plan.distKm:0)},0)}
+
+/* ---------- Routing ---------- */
+function searchPlaces(q){
+  var url='https://api3.geo.admin.ch/rest/services/api/SearchServer?type=locations&origins=address,gg25,zipcode,gazetteer&limit=6&sr=2056&searchText='+encodeURIComponent(q);
+  return fetchJSON(url,8000).then(function(j){return (j.results||[]).map(function(r){var a=r.attrs||{};var lat=a.lat,lon=a.lon;
+    if(!(lat&&lon)&&a.x&&a.y){var E=Math.max(a.x,a.y),N=Math.min(a.x,a.y);if(E<2e6){E+=2e6;N+=1e6}var w=fromLV95(E,N);lat=w[0];lon=w[1]}
+    return {label:String(a.label||'').replace(/<[^>]*>/g,'').trim(),lat:+lat,lon:+lon}}).filter(function(p){return p.label&&isFinite(p.lat)&&isFinite(p.lon)})})}
+function getRoutes(){
+  var prof=S.mode==='bike'?'routed-bike':'routed-foot';
+  var url='https://routing.openstreetmap.de/'+prof+'/route/v1/driving/'+S.start.lon.toFixed(6)+','+S.start.lat.toFixed(6)+';'+S.ziel.lon.toFixed(6)+','+S.ziel.lat.toFixed(6)+'?overview=full&geometries=geojson&alternatives=3&steps=false';
+  return fetchJSON(url,15000).then(function(j){if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error('noroute');
+    return j.routes.slice(0,3).map(function(r){return {distance:r.distance,duration:r.duration,coords:r.geometry.coordinates.map(function(c){return [c[1],c[0]]}),ascent:null,descent:null}})})}
+function addElevation(route){
+  var pts=route.coords,step=Math.max(1,Math.ceil(pts.length/180)),line=[];
+  for(var i=0;i<pts.length;i+=step)line.push(toLV95(pts[i][0],pts[i][1]).map(function(v){return Math.round(v*10)/10}));
+  var last=pts[pts.length-1];line.push(toLV95(last[0],last[1]).map(function(v){return Math.round(v*10)/10}));
+  var geom=JSON.stringify({type:'LineString',coordinates:line});
+  var url='https://api3.geo.admin.ch/rest/services/profile.json?sr=2056&nb_points=200&geom='+encodeURIComponent(geom);
+  return fetchJSON(url,12000).then(function(arr){var z=arr.map(function(p){var a=p.alts||{};return a.COMB!=null?a.COMB:(a.DTM25!=null?a.DTM25:a.DTM2)}).filter(function(v){return v!=null});
+    if(z.length<2)return;var up=0,dn=0,ref=z[0];
+    for(var k=1;k<z.length;k++){var d=z[k]-ref;if(Math.abs(d)>=2){if(d>0)up+=d;else dn-=d;ref=z[k]}}
+    route.ascent=Math.round(up);route.descent=Math.round(dn)}).catch(function(){})}
+
+function recommend(rs){
+  var limit=S.time*60, fits=rs.map(function(r){return r.duration<=limit*1.1});
+  var order=rs.map(function(r,i){return i});
+  var hasElev=rs.every(function(r){return r.ascent!=null});
+  var key=(S.prefs.indexOf('steigung')>=0&&hasElev)?'ascent':'distance';
+  order.sort(function(a,b){if(fits[a]!==fits[b])return fits[a]?-1:1;return rs[a][key]-rs[b][key]});
+  var best=order[0],r=rs[best],parts=[];
+  parts.push(fits[best]?'Passt zu Ihrem Zeitrahmen von '+S.time+' Min.':'Etwas länger als Ihr Zeitrahmen von '+S.time+' Min.');
+  if(rs.length>1){var others=rs.filter(function(_,i){return i!==best});
+    if(key==='ascent'&&others.some(function(o){return o.ascent>r.ascent}))parts.push('hat weniger Steigung als die Alternative ('+r.ascent+' statt '+Math.min.apply(null,others.map(function(o){return o.ascent}))+' Hm)');
+    else if(others.every(function(o){return o.distance>r.distance}))parts.push('ist die kürzeste Variante');}
+  else parts.push('der Routingdienst hat eine Variante gefunden');
+  return {i:best,why:parts.join(' und ')+'.'}}
+
+/* ---------- Ansichten ---------- */
+var STEP={s1:1,s2:2,s3:3,s4:4};
+function view(){
+  var v=S.view; $('#stepinfo').textContent=STEP[v]?'Schritt '+STEP[v]+' von 4':'';
+  var h=STEP[v]?'<div class="bar" aria-hidden="true">'+[1,2,3,4].map(function(n){return '<span class="'+(n<=STEP[v]?'on':'')+'"></span>'}).join('')+'</div>':'';
+  h+=({start:vStart,s1:vS1,s2:vS2,s3:vS3,s4:vS4,home:vHome,team:vTeam,privacy:vPrivacy,wipe:vWipe}[v]||vStart)();
+  $('#app').innerHTML=h; after(v); window.scrollTo(0,0);
+}
+function illu(){return '<svg viewBox="0 0 320 130" width="100%" role="img" aria-label="Ein Weg führt von der Haustür zu Fuss und mit dem Velo zum Ziel; das Auto bleibt stehen." style="max-width:100%;display:block;margin:4px 0 14px">'+
+  '<line x1="0" y1="118" x2="320" y2="118" stroke="var(--line)" stroke-width="1.5"/>'+
+  '<path d="M12 62 L42 40 L72 62 Z" fill="var(--petrol-2)"/><rect x="18" y="60" width="48" height="58" fill="var(--petrol-pale)"/><rect x="36" y="88" width="13" height="30" fill="var(--apricot)"/>'+
+  '<g fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M76 114 v-7 q0-4 4-4 h5 l6-8 h17 l7 8 h3 q4 0 4 4 v7 z"/><circle cx="86" cy="114" r="4"/><circle cx="111" cy="114" r="4"/></g>'+
+  '<path d="M44 118 C 100 128, 130 96, 170 100 S 240 122, 280 116" fill="none" stroke="var(--apricot)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 7"/>'+
+  '<g stroke="var(--petrol)" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="150" cy="72" r="5" fill="var(--petrol)" stroke="none"/><path d="M149.5 79 L148 92" stroke-width="6"/><path d="M148 92 L142 104 M148 92 L154 98 L155 104" stroke-width="3.2"/><path d="M149 82 L143 89 M149.5 82 L155 88" stroke-width="2.6"/>'+
+  '<circle cx="204" cy="104" r="7.5" stroke-width="2"/><circle cx="226" cy="104" r="7.5" stroke-width="2"/><path d="M204 104 L213 92 L226 104 M213 92 L221 92 M209 89 h7" stroke-width="2"/><circle cx="218" cy="72" r="5" fill="var(--petrol)" stroke="none"/><path d="M217.5 79 L213 89" stroke-width="6"/><path d="M216 82 L222 90" stroke-width="2.6"/></g>'+
+  '<path d="M262 118 V70 h46 V118" fill="var(--petrol-pale)"/><path d="M258 72 h54 l-4 -12 h-46 z" fill="var(--apricot)"/><rect x="290" y="92" width="11" height="26" fill="var(--petrol-2)"/></svg>'}
+
+function vStart(){return illu()+
+ '<h1>Welcher Weg passt in Ihren Alltag?</h1><p class="lead">Finden Sie einen passenden Alltagsweg und starten Sie mit einem kleinen Ziel.</p>'+
+ '<div class="stack"><button class="btn" type="button" data-act="go" data-to="s1">Los geht’s</button>'+
+ (S.plan?'<button class="btn sec" type="button" data-act="go" data-to="home">Zu meinem Fortschritt</button>':'')+
+ '<p class="small">Ohne Registrierung. Ihr Plan und Ihr Fortschritt bleiben auf diesem Gerät. Wählen Sie Wege und Ziele passend zu Ihren Möglichkeiten. Besprechen Sie Unsicherheiten mit Ihrer Praxis.</p></div>'}
+
+function vS1(){return '<h1>Was würde Ihnen im Alltag guttun?</h1><p class="lead">Freiwillig – wählen Sie, was für Sie zutrifft. Das ersetzt keine medizinische Einschätzung.</p>'+
+ '<div class="opts" role="group" aria-label="Ziele">'+GOALS.map(function(g){var on=S.goals.indexOf(g.id)>=0;return '<button type="button" class="opt" data-act="goal" data-id="'+g.id+'" aria-pressed="'+on+'"><span class="tick" aria-hidden="true">'+(on?'<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6 l3 3 l5 -6" fill="none" stroke="#fff" stroke-width="2"/></svg>':'')+'</span>'+g.t+'</button>'}).join('')+'</div>'+
+ '<div class="field" style="margin-top:12px"><label for="owngoal">Eigenes Ziel (optional)</label><input id="owngoal" type="text" maxlength="80" placeholder="z. B. Treppen wieder leichter schaffen" value="'+esc(S.ownGoal)+'" data-bind="ownGoal"></div>'+
+ nav('start','s2','Weiter')}
+
+function placeField(id,lbl){var p=S[id];return '<div class="field ac"><label for="in-'+id+'">'+lbl+'</label><input id="in-'+id+'" type="text" autocomplete="off" placeholder="Adresse oder Ort" value="'+esc(p?p.label:'')+'" data-place="'+id+'"><div id="pk-'+id+'" class="picked">'+(p?'✓ gewählt':'')+'</div><ul class="aclist" id="ac-'+id+'" hidden></ul></div>'}
+function vS2(){var t=[10,15,20,30];return '<h1>Welcher Weg passt dazu?</h1>'+
+ '<div class="stack">'+placeField('start','Start')+
+ '<button type="button" class="btn ghost" data-act="locate" style="align-self:flex-start">Meinen Standort als Start verwenden</button>'+
+ placeField('ziel','Ziel')+
+ '<details id="pickdet"><summary>Oder Punkte auf der Karte wählen</summary><div><p class="small">Erst tippen = Start, zweites Tippen = Ziel.</p><div id="pickmap" class="map small"></div></div></details>'+
+ '<div class="field"><span class="lbl">Unterwegs</span><div class="seg"><button type="button" class="opt" data-act="mode" data-id="foot" aria-pressed="'+(S.mode==='foot')+'">Zu Fuss</button><button type="button" class="opt" data-act="mode" data-id="bike" aria-pressed="'+(S.mode==='bike')+'">Mit dem Velo</button></div></div>'+
+ '<div class="field"><span class="lbl">Wie viel Zeit passt für eine Strecke?</span><span class="small">Gilt für den einfachen Weg, ohne Rückweg.</span><div class="chips">'+t.map(function(m){return '<button type="button" class="chip" data-act="time" data-id="'+m+'" aria-pressed="'+(S.time===m&&!S.timeOwn)+'">'+m+' Min.</button>'}).join('')+
+   '<input type="number" inputmode="numeric" min="3" max="120" id="timeown" placeholder="Eigene Min." aria-label="Eigene Minuten" value="'+esc(S.timeOwn)+'" data-bind="timeOwn" style="width:140px"></div></div>'+
+ '<div class="field"><span class="lbl">Wünsche</span><div class="chips">'+
+   [['kurz','Möglichst kurz'],['steigung','Wenig Steigung'],['strassen','Abseits grosser Strassen']].map(function(p){return '<button type="button" class="chip" data-act="pref" data-id="'+p[0]+'" aria-pressed="'+(S.prefs.indexOf(p[0])>=0)+'">'+p[1]+'</button>'}).join('')+
+   '</div><span class="small" id="prefnote">'+prefNote()+'</span></div>'+
+ '<div class="field"><span class="lbl">Wie legen Sie diesen Weg bisher zurück?</span><div class="chips">'+BISHER.map(function(b){return '<button type="button" class="chip" data-act="bisher" data-id="'+b.id+'" aria-pressed="'+(S.bisher===b.id)+'">'+b.t+'</button>'}).join('')+'</div></div>'+
+ '<div class="note">Für die Suche gehen Start und Ziel an <b>geo.admin.ch</b> (Adresssuche, Höhen, Karte) und an <b>routing.openstreetmap.de</b> (Route). Die App speichert keine Adressen.</div>'+
+ '<p class="err" id="s2err" role="alert"></p></div>'+
+ nav('s1',null,'Route suchen','search')}
+function prefNote(){var n=[];if(S.prefs.indexOf('steigung')>=0)n.push('«Wenig Steigung» wird anhand der swisstopo-Höhendaten zwischen den gefundenen Varianten verglichen.');
+ if(S.prefs.indexOf('strassen')>=0)n.push('«Abseits grosser Strassen» kann der Routingdienst derzeit nicht gezielt berücksichtigen.');return n.join(' ')}
+
+function vS3(){
+ if(S.loading)return '<h1>Ihre passende Route</h1><p class="lead">Routen werden gesucht …</p><div class="map" aria-hidden="true"></div>';
+ if(S.routeErr)return '<h1>Ihre passende Route</h1><p class="err" role="alert">'+esc(S.routeErr)+'</p><div class="stack"><button class="btn" type="button" data-act="search">Erneut versuchen</button><button class="btn sec" type="button" data-act="go" data-to="s2">Start oder Ziel ändern</button><button class="btn ghost" type="button" data-act="demo">Beispielroute ansehen (Demo)</button></div>';
+ var rs=S.routes,rec=recommend(rs);
+ return '<h1>Ihre passende Route</h1>'+(S.demo?'<p class="demo">Demo – Beispieldaten, keine echte Route. In dieser Umgebung sind die Karten- und Routingdienste nicht erreichbar.</p>':'')+
+ '<div id="map" class="map" role="img" aria-label="Karte mit '+rs.length+' Routenvarianten"></div>'+
+ '<p class="small" style="margin-top:6px">'+(S.demo?'Schematische Darstellung.':'Karte © swisstopo · Route © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>, OSRM/FOSSGIS · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Karte verbessern</a>')+'</p>'+
+ '<div class="stack" style="margin-top:12px">'+rs.map(function(r,i){var col=i===0?'var(--apricot)':i===1?'var(--petrol-2)':'var(--muted)';
+   return '<button type="button" class="routecard" data-act="pick" data-id="'+i+'" aria-pressed="'+(S.chosen===i)+'">'+
+   (i===rec.i?'<span class="badge">Passende Route für Ihre Auswahl</span>':'<span class="small"><span class="swatch" style="background:'+col+'"></span>Variante '+(i+1)+'</span>')+
+   '<div class="rmeta"><span><b>'+km(r.distance)+'</b></span><span><b>ca. '+mins(r.duration)+' Min.</b> eine Strecke</span><span>'+(r.ascent!=null?'↑ '+r.ascent+' Hm · ↓ '+r.descent+' Hm':'Höhenmeter nicht verfügbar')+'</span></div>'+
+   (i===rec.i?'<span class="small">'+esc(rec.why)+'</span>':'')+'</button>'}).join('')+
+ '<details><summary>Was die App nicht prüfen kann</summary><div><p class="small">Gehsteige, sichere Querungen, Beleuchtung, Barrierefreiheit und Schatten sind nicht zuverlässig geprüft. Dauer und Höhenmeter sind Schätzungen. Hin- und Rückweg zusammen dauern etwa doppelt so lange.</p></div></details></div>'+
+ nav('s2','s4','Diese Route wählen')}
+
+function vS4(){var p=S.editPlan;var r=S.routes&&S.routes[S.chosen];
+ var verb=S.mode==='bike'?'fahre':'gehe',how=S.mode==='bike'?'mit dem Velo':'zu Fuss';
+ var days=p.days.length?p.days.map(function(d){return DAYNAMES[d]}).join(' und '):'[Wochentag]';
+ return '<h1>Mein konkreter Plan</h1><p class="lead">Sie entscheiden, was realistisch ist. Klein anfangen ist gut.</p>'+
+ '<div class="card"><p class="sentence" id="sentence">Am <em>'+esc(days)+'</em> '+verb+' ich <em>'+esc(p.name||'[Alltagsweg]')+'</em> '+how+'.</p>'+(r?'<p class="small" style="margin:0">'+km(r.distance)+' · ca. '+mins(r.duration)+' Min. pro Strecke</p>':'')+'</div>'+
+ '<div class="stack" style="margin-top:14px">'+
+ '<div class="field"><label for="pname">Mein Alltagsweg</label><input id="pname" type="text" maxlength="50" placeholder="z. B. zum Quartierladen" value="'+esc(p.name)+'" data-bind="plan.name"><span class="small">Eine kurze Bezeichnung statt einer Adresse.</span></div>'+
+ '<div class="field"><span class="lbl">An welchen Tagen?</span><div class="chips">'+DAYS.map(function(d,i){return '<button type="button" class="chip" data-act="day" data-id="'+i+'" aria-pressed="'+(p.days.indexOf(i)>=0)+'" aria-label="'+DAYNAMES[i]+'">'+d+'</button>'}).join('')+'</div></div>'+
+ '<div class="field"><span class="lbl">Wie oft pro Woche passt es?</span><div class="chips">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="chip" data-act="freq" data-id="'+n+'" aria-pressed="'+(p.perWeek===n)+'">'+n+'×</button>'}).join('')+'</div><span class="small">Ihr Wochenziel. Tägliche Wege sind nicht nötig.</span></div>'+
+ '<div class="field"><span class="lbl">Passender Zeitpunkt</span><div class="chips">'+TIMES.map(function(t){return '<button type="button" class="chip" data-act="tod" data-id="'+t.id+'" aria-pressed="'+(p.time===t.id)+'">'+t.t+'</button>'}).join('')+'</div></div>'+
+ '<div class="field"><span class="lbl">Was hilft Ihnen dabei? (optional)</span><div class="chips">'+SUPPORT.map(function(s,i){return '<button type="button" class="chip" data-act="sup" data-id="'+i+'" aria-pressed="'+(p.support.indexOf(i)>=0)+'">'+s+'</button>'}).join('')+'</div><input type="text" id="supown" maxlength="80" placeholder="Eigene Idee" value="'+esc(p.supportOwn)+'" data-bind="plan.supportOwn" aria-label="Eigene Unterstützung"></div>'+
+ '<div class="field"><label for="ersatz">Wenn das nicht klappt, probiere ich … (optional)</label><input id="ersatz" type="text" maxlength="90" placeholder="z. B. eine kürzere Runde am Sonntag" value="'+esc(p.ersatz)+'" data-bind="plan.ersatz"></div>'+
+ '</div>'+nav(S.routes?'s3':'home',null,'Plan festhalten','save')}
+
+function nav(back,next,label,act){return '<div class="navrow">'+(back?'<button class="btn sec" type="button" data-act="go" data-to="'+back+'">Zurück</button>':'')+
+ '<button class="btn" type="button" '+(act?'data-act="'+act+'"':'data-act="go" data-to="'+next+'"')+'>'+label+'</button></div>'}
+
+function milestones(){var cur=weekKey(new Date()),ks=[];for(var i=7;i>=0;i--)ks.push(shiftWeek(cur,-i));var g=goalPerWeek(),created=weekKey(new Date(S.plan.createdAt));
+ var pts=ks.map(function(k,i){var x=20+i*40,y=40+Math.sin(i*0.9)*14;return {k:k,x:x,y:y,ok:countWeek(k)>=g,p:isPaused(k),cur:k===cur,pre:k<created}});
+ var d='M'+pts.map(function(p){return p.x+' '+p.y}).join(' L');
+ return '<svg viewBox="0 0 320 80" width="100%" role="img" aria-label="Wochenziele der letzten acht Wochen" style="display:block;max-width:100%"><path d="'+d+'" fill="none" stroke="var(--line)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
+ pts.map(function(p){if(p.pre)return '<circle cx="'+p.x+'" cy="'+p.y+'" r="4" fill="var(--line)"/>';
+   return '<circle cx="'+p.x+'" cy="'+p.y+'" r="'+(p.cur?11:9)+'" fill="'+(p.ok?'var(--apricot)':'var(--surface)')+'" stroke="'+(p.ok?'var(--apricot)':'var(--petrol-2)')+'" stroke-width="2" '+(p.p?'stroke-dasharray="3 3"':'')+'/>'+(p.cur?'<text x="'+p.x+'" y="'+(p.y+28)+'" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--body)">jetzt</text>':'')}).join('')+'</svg>'}
+
+function benefits(){var p=S.plan,l=['Bewegung ohne zusätzlichen Sporttermin in den Alltag einbauen'];
+ if(p.goals.indexOf('leichter')>=0)l.push('An Ihrem eigenen Ausdauerziel arbeiten');
+ if(p.ownGoal)l.push('Ihr Ziel: '+p.ownGoal);
+ l.push('Selbstständig unterwegs sein');
+ l.push('Einen angenehmen Moment draussen erleben');
+ if(p.bisher==='auto'||p.bisher==='mix')l.push('Je nach Situation Parkplatzsuche oder Fahrtkosten sparen');
+ return l}
+
+function vHome(){var p=S.plan;if(!p)return vStart();
+ var cur=weekKey(new Date()),n=countWeek(cur),g=p.perWeek,st=streak(),paused=isPaused(cur);
+ var verb=p.mode==='bike'?'fahre':'gehe',how=p.mode==='bike'?'mit dem Velo':'zu Fuss';
+ var days=p.days.length?p.days.map(function(d){return DAYNAMES[d]}).join(' und '):(g+'× pro Woche');
+ var canReplace=(p.bisher==='auto'||p.bisher==='mix');
+ var h=(p.demo?'<p class="demo">Dieser Plan beruht auf einer Demo-Route (Beispieldaten).</p>':'')+'<div class="hero"><h1>Ihr Weg. Ihr Ziel. Ihr Fortschritt.</h1>'+
+  '<p style="margin:0 0 4px;font-weight:600">Diese Woche: '+Math.min(n,g)+' von '+g+' '+(g===1?'Weg':'Wegen')+(paused?' · pausiert':'')+'</p>'+
+  '<div class="weekdots" aria-hidden="true">'+Array.from({length:g}).map(function(_,i){return '<i class="'+(i<n?'on':'')+'"></i>'}).join('')+'</div>'+
+  (st>=2?'<p style="margin:6px 0 0;font-weight:700">'+st+' Wochen in Folge Ihr persönliches Wochenziel erreicht!</p>':st===1?'<p style="margin:6px 0 0;font-weight:700">Wochenziel erreicht.</p>':'<p class="small" style="margin:6px 0 0">Ihr persönlicher Schritt: mehr Bewegung im Alltag.</p>')+'</div>';
+ h+='<div class="stack" style="margin-top:14px">';
+ if(!S.confirmOpen)h+='<button class="btn" type="button" data-act="confirmopen">Weg geschafft</button>';
+ else h+='<div class="card stack"><h3>Weg festhalten</h3>'+
+  '<div class="seg"><button type="button" class="opt" data-act="tw" data-id="heute" aria-pressed="'+(S.trip.when==='heute')+'">Heute</button><button type="button" class="opt" data-act="tw" data-id="gestern" aria-pressed="'+(S.trip.when==='gestern')+'">Gestern</button></div>'+
+  '<div class="seg"><button type="button" class="opt" data-act="tr" data-id="0" aria-pressed="'+(!S.trip.round)+'">Eine Strecke</button><button type="button" class="opt" data-act="tr" data-id="1" aria-pressed="'+S.trip.round+'">Hin und zurück</button></div>'+
+  (canReplace?'<div class="field"><span class="lbl">Haben Sie damit eine Autofahrt ersetzt?</span><div class="chips"><button type="button" class="chip" data-act="trep" data-id="yes" aria-pressed="'+(S.trip.replaced===true)+'">Ja</button><button type="button" class="chip" data-act="trep" data-id="no" aria-pressed="'+(S.trip.replaced===false)+'">Nein</button><button type="button" class="chip" data-act="trep" data-id="na" aria-pressed="'+(S.trip.replaced===null)+'">Weiss nicht</button></div><span class="small">Freiwillig. Nur bestätigte Fahrten zählen als vermieden.</span></div>':'')+
+  '<div class="navrow" style="margin-top:4px"><button class="btn sec" type="button" data-act="confirmclose">Abbrechen</button><button class="btn" type="button" data-act="confirm">Speichern</button></div></div>';
+ h+='<div class="card"><p class="sentence" style="margin:0">Am <em>'+esc(days)+'</em> '+verb+' ich <em>'+esc(p.name)+'</em> '+how+'.</p>'+
+  (p.ersatz?'<p class="small" style="margin:8px 0 0">Ersatzplan: '+esc(p.ersatz)+'</p>':'')+
+  ((p.support.length||p.supportOwn)?'<p class="small" style="margin:4px 0 0">Das hilft mir: '+esc(p.support.map(function(i){return SUPPORT[i]}).concat(p.supportOwn?[p.supportOwn]:[]).join(', '))+'</p>':'')+'</div>';
+ h+='<div class="card"><h3>Ihre Etappen</h3>'+milestones()+'<p class="small" style="margin:6px 0 0">Gefüllt = Wochenziel erreicht · gestrichelt = pausiert. Erreichte Wege bleiben sichtbar, auch wenn eine Serie endet.</p></div>';
+ h+='<div class="stats"><div class="stat"><b>'+S.trips.length+'</b><span>bestätigte aktive Wege</span></div><div class="stat"><b>ca. '+activeMinutes()+'</b><span>geschätzte aktive Minuten</span></div><div class="stat"><b>'+weeksReached()+'</b><span>erreichte Wochenziele</span></div><div class="stat"><b>'+replacedCount()+'</b><span>bestätigte ersetzte Autofahrten</span></div></div>';
+ h+='<div class="card"><h3>Ihr persönlicher Nutzen</h3><ul class="list">'+benefits().map(function(b){return '<li>'+esc(b)+'</li>'}).join('')+'</ul><p class="small" style="margin:0">Gesundheitliche Wirkungen sind individuell und nicht garantiert.</p></div>';
+ var rc=replacedCount();
+ h+='<details><summary>Zusätzlicher Umweltvorteil</summary><div>'+
+  '<div class="chain"><span>Route geplant</span>→<span>'+S.trips.length+(S.trips.length===1?' Weg':' Wege')+' durchgeführt</span>→<span class="end">'+rc+(rc===1?' Autofahrt':' Autofahrten')+' ersetzt</span></div>'+
+  (rc?'<p>Mit Ihren bestätigten Wegen haben Sie etwa <b>'+avoidedKm().toFixed(1).replace('.',',')+' Autokilometer</b> vermieden.</p><p class="small">Geschätzt anhand der Länge Ihrer Fuss- bzw. Velostrecke. Ein Plan allein ist noch keine Einsparung; die App zeigt bewusst keine CO₂-Zahl.</p>':
+   (canReplace?'<p class="small">Sobald Sie einen Weg als ersetzte Autofahrt bestätigen, sehen Sie hier die vermiedenen Autokilometer.</p>':'<p class="small">Ihr Weg ersetzt laut Ihrer Angabe keine Autofahrt. Er unterstützt trotzdem Ihre Bewegung im Alltag; eine vermiedene Fahrt rechnet die App nicht an.</p>'))+
+  '</div></details>';
+ h+='<details id="hard"><summary>Was hat es diese Woche schwierig gemacht?</summary><div><p class="small">Kein Problem – passen Sie Ihren Plan an:</p><div class="chips">'+
+  '<button type="button" class="chip" data-act="adj" data-id="kuerzer">Kürzere Strecke</button><button type="button" class="chip" data-act="adj" data-id="zeit">Anderer Zeitpunkt</button><button type="button" class="chip" data-act="adj" data-id="seltener">Seltener</button><button type="button" class="chip" data-act="adj" data-id="begleitung">Mit Begleitung</button><button type="button" class="chip" data-act="adj" data-id="pause">Diese Woche pausieren</button></div></div></details>';
+ if(S.trips.length)h+='<details><summary>Meine Wege</summary><div>'+S.trips.slice().reverse().slice(0,20).map(function(t){var i=S.trips.indexOf(t),d=new Date(t.date);return '<div class="trip"><span>'+d.toLocaleDateString('de-CH',{weekday:'short',day:'numeric',month:'numeric'})+' · '+(t.round?'hin und zurück':'eine Strecke')+(t.replaced===true?' · Autofahrt ersetzt':'')+'</span><button type="button" class="btn ghost" data-act="deltrip" data-id="'+i+'">Entfernen</button></div>'}).join('')+'</div></details>';
+ h+='<div class="navrow"><button class="btn sec" type="button" data-act="pausetoggle">'+(paused?'Fortsetzen':'Woche pausieren')+'</button><button class="btn sec" type="button" data-act="editplan" style="flex:1">Plan anpassen</button></div>';
+ h+='<button class="btn ghost" type="button" data-act="ics" '+(p.days.length?'':'disabled')+'>Kalendererinnerung herunterladen'+(p.days.length?'':' (erst Wochentage wählen)')+'</button>';
+ h+='<p class="small">Wählen Sie Wege und Ziele passend zu Ihren Möglichkeiten. Besprechen Sie Unsicherheiten mit Ihrer Praxis.</p></div>';
+ return h}
+
+function vTeam(){return '<h1>Für das Praxisteam</h1><p class="lead">Gesprächsleitfaden: Persönliche Ziele verstehen. Passende Vorteile erklären. Gemeinsam entscheiden.</p><div class="stack">'+
+ [['1 · Erlaubnis einholen','«Darf ich mit Ihnen kurz überlegen, was Ihnen im Alltag guttun könnte?»'],
+  ['2 · Anliegen verstehen','«Was würden Sie im Alltag gerne wieder leichter schaffen?» – Antwort spiegeln: «Ihnen ist also wichtig, Ihre Einkäufe selbstständig und mit weniger Anstrengung zu erledigen.»'],
+  ['3 · Passenden Nutzen erklären','«Regelmässige Bewegung kann helfen, die Ausdauer zu verbessern. Wenn es für Sie medizinisch passt, könnten kurze Alltagswege ein Einstieg sein. Wie klingt das für Sie?» Keine individuellen Wirkungen versprechen.'],
+  ['4 · Gemeinsam planen','«Welcher kurze Weg käme für Sie infrage? Und was könnte es schwierig machen?» Hindernisse ernst nehmen: Zeit, Schmerzen, Steigungen, Verkehr, schwere Einkäufe, fehlende Begleitung. «Die App kann bei der Routensuche helfen. Möchten Sie das ausprobieren?»'],
+  ['5 · Selbst gewähltes Ziel','«Was möchten Sie selbst ausprobieren – und wie oft wäre das realistisch?» Ein Nein respektieren. Bei geringer Zuversicht das Ziel verkleinern.']].map(function(s){return '<div class="card"><h3>'+s[0]+'</h3><p style="margin:0">'+esc(s[1])+'</p></div>'}).join('')+
+ '<div class="note warm"><b>Wertfrei ansprechen.</b> Statt «Sie sollten …» fragen, was guttun würde. Gewicht, Leistung und Klima nicht ins Zentrum stellen. Umweltthemen nur auf Nachfrage ehrlich erklären.</div>'+
+ '<div class="note"><b>Daten.</b> Die App überträgt nichts an die Praxis. Plan und Fortschritt bleiben auf dem Gerät der Person.</div></div>'+
+ '<div class="navrow"><button class="btn sec" type="button" data-act="home">Zurück</button></div>'}
+
+function vPrivacy(){return '<h1>Datenschutz &amp; Quellen</h1><div class="stack">'+
+ '<div class="card"><h3>Was mit Ihren Eingaben passiert</h3><ul class="list"><li>Keine Registrierung, kein Tracking, keine Analyse.</li><li>Start und Ziel gehen nur für die Suche an geo.admin.ch (Adresssuche, Höhenprofil, Kartenkacheln) und routing.openstreetmap.de (Routenberechnung). Diese Dienste können Anfragen protokollieren.</li><li>Ihr Standort wird nur verwendet, wenn Sie ausdrücklich darauf tippen.</li><li>Auf diesem Gerät gespeichert werden nur Wegbezeichnung, Länge, Dauer, Plan und bestätigte Wege – keine Adressen oder Koordinaten.</li><li>Mit «Eingaben löschen» entfernen Sie alles.</li></ul></div>'+
+ '<div class="card"><h3>Dienste und Quellen</h3><ul class="list small"><li>Karte und Höhen: © swisstopo (geo.admin.ch)</li><li>Routen: © OpenStreetMap-Mitwirkende, OSRM-Server der FOSSGIS</li><li>Bewegungsempfehlungen: WHO (2020), Guidelines on physical activity and sedentary behaviour; BASPO, BAG u. a. (2013), Gesundheitswirksame Bewegung</li></ul><p class="small" style="margin:0">Die App ist ein nicht evaluierter Umsetzungsvorschlag.</p></div></div>'+
+ '<div class="navrow"><button class="btn sec" type="button" data-act="home">Zurück</button></div>'}
+
+function vWipe(){return '<h1>Eingaben löschen</h1><p>Damit werden Ihr Plan, Ihre bestätigten Wege und alle Eingaben auf diesem Gerät entfernt.</p>'+
+ '<div class="navrow"><button class="btn sec" type="button" data-act="home">Abbrechen</button><button class="btn" type="button" data-act="wipe">Alles löschen</button></div>'}
+
+/* ---------- Karten ---------- */
+var mapObj=null,pickObj=null,layers=[],pickMarkers={};
+function tiles(m){L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg',{maxZoom:19,maxNativeZoom:18,attribution:'© swisstopo'}).addTo(m)}
+function demoSvg(el){var rs=S.routes,W=el.clientWidth||320,H=el.clientHeight||280,pd=30;
+ var s='<svg width="100%" height="100%" viewBox="0 0 '+W+' '+H+'" aria-hidden="true">';
+ rs.map(function(r,i){return i}).sort(function(a,b){return (a===S.chosen)-(b===S.chosen)}).forEach(function(i){var r=rs[i];var d='M'+r.coords.map(function(c){return (pd+c[0]*(W-2*pd)).toFixed(1)+' '+(H-pd-c[1]*(H-2*pd)).toFixed(1)}).join(' L');
+  s+='<path d="'+d+'" fill="none" stroke="'+(i===S.chosen?'var(--apricot)':'var(--petrol-2)')+'" stroke-width="'+(i===S.chosen?6:4)+'" stroke-linecap="round" stroke-linejoin="round" opacity="'+(i===S.chosen?1:.55)+'"/>'});
+ s+='<circle cx="'+pd+'" cy="'+(H-pd)+'" r="8" fill="var(--petrol)"/><circle cx="'+(W-pd)+'" cy="'+(H-pd-0.8*(H-2*pd))+'" r="8" fill="var(--apricot)" stroke="var(--surface)" stroke-width="3"/></svg>';el.innerHTML=s}
+function drawRoutes(){var el=$('#map');if(!el)return;
+ if(S.demo||typeof L==='undefined'){demoSvg(el);return}
+ if(mapObj){mapObj.remove();mapObj=null}
+ mapObj=L.map(el,{zoomControl:true,attributionControl:false});tiles(mapObj);layers=[];
+ var order=S.routes.map(function(r,i){return i}).sort(function(a,b){return (a===S.chosen)-(b===S.chosen)});
+ order.forEach(function(i){var on=i===S.chosen;var pl=L.polyline(S.routes[i].coords,{color:on?'#E07B4C':'#1E5A64',weight:on?6:4,opacity:on?1:.55}).addTo(mapObj);pl.on('click',function(){S.chosen=i;view()});layers.push(pl)});
+ L.circleMarker([S.start.lat,S.start.lon],{radius:7,color:'#fff',weight:3,fillColor:'#0F3B44',fillOpacity:1}).addTo(mapObj);
+ L.circleMarker([S.ziel.lat,S.ziel.lon],{radius:7,color:'#fff',weight:3,fillColor:'#E07B4C',fillOpacity:1}).addTo(mapObj);
+ mapObj.fitBounds(L.featureGroup(layers).getBounds(),{padding:[24,24]})}
+function initPick(){var el=$('#pickmap');if(!el||typeof L==='undefined')return;if(pickObj){pickObj.remove();pickObj=null}
+ pickObj=L.map(el).setView([47.4245,9.3767],13);tiles(pickObj);pickMarkers={};
+ ['start','ziel'].forEach(function(k){if(S[k])setPickMarker(k)});
+ pickObj.on('click',function(e){var k=!S.start||(S.start&&S.ziel)?'start':'ziel';if(S.start&&S.ziel)S.ziel=null;
+   setPlace(k,{label:'Kartenpunkt',lat:e.latlng.lat,lon:e.latlng.lng});setPickMarker(k)})}
+function setPickMarker(k){if(!pickObj)return;if(pickMarkers[k])pickObj.removeLayer(pickMarkers[k]);
+ pickMarkers[k]=L.circleMarker([S[k].lat,S[k].lon],{radius:8,color:'#fff',weight:3,fillColor:k==='start'?'#0F3B44':'#E07B4C',fillOpacity:1}).addTo(pickObj)}
+function setPlace(k,p){S[k]=p;var i=$('#in-'+k);if(i)i.value=p.label;var pk=$('#pk-'+k);if(pk)pk.textContent='✓ gewählt';var ac=$('#ac-'+k);if(ac)ac.hidden=true}
+
+function after(v){
+ if(v==='s3'&&S.routes&&!S.loading&&!S.routeErr)drawRoutes();
+ if(v==='s2'){var det=$('#pickdet');if(det)det.addEventListener('toggle',function(){if(det.open)setTimeout(initPick,30)})}
+}
+
+/* ---------- Aktionen ---------- */
+function newPlan(){var r=S.routes&&S.routes[S.chosen];return {name:'',days:[],perWeek:1,time:'flex',support:[],supportOwn:'',ersatz:'',
+  mode:S.mode,distKm:r?Math.round(r.distance/100)/10:0,durMin:r?mins(r.duration):0,ascent:r?r.ascent:null,bisher:S.bisher||'neu',goals:S.goals.slice(),ownGoal:S.ownGoal,createdAt:new Date().toISOString(),demo:S.demo}}
+function toggle(arr,v){var i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v)}
+function doSearch(){var e=$('#s2err');
+ if(!S.start||!S.ziel){if(e)e.textContent='Bitte Start und Ziel wählen – aus der Vorschlagsliste oder auf der Karte.';return}
+ var t=parseInt(S.timeOwn,10);if(t>=3&&t<=120)S.time=t;
+ S.loading=true;S.routeErr='';S.demo=false;S.view='s3';view();
+ getRoutes().then(function(rs){return Promise.all(rs.map(addElevation)).then(function(){return rs})})
+ .then(function(rs){S.routes=rs;S.chosen=recommend(rs).i;S.loading=false;view()})
+ .catch(function(err){S.loading=false;S.routeErr=(err&&err.message==='noroute')?'Für diese Strecke wurde keine Route gefunden. Prüfen Sie Start und Ziel.':'Die Routensuche ist gerade nicht erreichbar. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.';view()})}
+function makeICS(){var p=S.plan,t=TIMES.filter(function(x){return x.id===p.time})[0]||TIMES[4];
+ var now=new Date(),first=p.days.slice().sort()[0],d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ while(((d.getDay()+6)%7)!==first||d<=now)d.setDate(d.getDate()+1);
+ var ds=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(t.h)+'0000';
+ var how=p.mode==='bike'?'Velo':'Fuss';
+ return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Mein Alltagsweg//DE','BEGIN:VEVENT','UID:'+Date.now()+'@mein-alltagsweg','DTSTAMP:'+now.toISOString().replace(/[-:]/g,'').slice(0,15)+'Z',
+  'DTSTART:'+ds,'DURATION:PT'+Math.max(15,p.durMin*2)+'M','RRULE:FREQ=WEEKLY;BYDAY='+p.days.map(function(i){return ICSDAY[i]}).join(','),
+  'SUMMARY:Alltagsweg: '+String(p.name).replace(/[,;\\]/g,' '),'DESCRIPTION:Möchten Sie Ihren geplanten '+how+'weg ausprobieren? Sie können pausieren\\, wann immer es nötig ist.',
+  'BEGIN:VALARM','ACTION:DISPLAY','TRIGGER:-P1D','DESCRIPTION:Morgen ist Ihr Alltagsweg-Tag. Möchten Sie Ihren geplanten '+how+'weg ausprobieren?','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n')}
+
+document.addEventListener('click',function(ev){var b=ev.target.closest('[data-act]');if(!b||b.disabled)return;var a=b.getAttribute('data-act'),id=b.getAttribute('data-id');
+ switch(a){
+  case 'home':S.view=S.plan?'home':'start';view();break;
+  case 'go':var to=b.getAttribute('data-to');S.view=to;view();break;
+  case 'goal':toggle(S.goals,id);b.setAttribute('aria-pressed',S.goals.indexOf(id)>=0);b.querySelector('.tick').innerHTML=S.goals.indexOf(id)>=0?'<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6 l3 3 l5 -6" fill="none" stroke="#fff" stroke-width="2"/></svg>':'';break;
+  case 'mode':S.mode=id;document.querySelectorAll('[data-act=mode]').forEach(function(x){x.setAttribute('aria-pressed',x.getAttribute('data-id')===id)});break;
+  case 'time':S.time=+id;S.timeOwn='';$('#timeown').value='';document.querySelectorAll('[data-act=time]').forEach(function(x){x.setAttribute('aria-pressed',x.getAttribute('data-id')===id)});break;
+  case 'pref':toggle(S.prefs,id);b.setAttribute('aria-pressed',S.prefs.indexOf(id)>=0);$('#prefnote').textContent=prefNote();break;
+  case 'bisher':S.bisher=id;document.querySelectorAll('[data-act=bisher]').forEach(function(x){x.setAttribute('aria-pressed',x.getAttribute('data-id')===id)});break;
+  case 'ac':setPlace(b.getAttribute('data-k'),acCache[b.getAttribute('data-k')][+id]);if(pickObj)setPickMarker(b.getAttribute('data-k'));break;
+  case 'locate':if(!navigator.geolocation){$('#s2err').textContent='Ihr Gerät stellt keinen Standort bereit. Bitte Adresse eingeben.';break}
+    b.textContent='Standort wird ermittelt …';
+    navigator.geolocation.getCurrentPosition(function(pos){setPlace('start',{label:'Mein Standort',lat:pos.coords.latitude,lon:pos.coords.longitude});b.textContent='Meinen Standort als Start verwenden';if(pickObj)setPickMarker('start')},
+      function(){b.textContent='Meinen Standort als Start verwenden';$('#s2err').textContent='Der Standort ist nicht verfügbar oder wurde nicht freigegeben. Bitte Adresse eingeben.'},{enableHighAccuracy:true,timeout:10000});break;
+  case 'search':doSearch();break;
+  case 'demo':S.routes=JSON.parse(JSON.stringify(DEMO.routes));S.demo=true;S.routeErr='';S.start=S.start||{label:'Beispiel-Start',lat:0,lon:0};S.ziel=S.ziel||{label:'Beispiel-Ziel',lat:0,lon:0};S.chosen=recommend(S.routes).i;view();break;
+  case 'pick':S.chosen=+id;view();break;
+  case 'day':toggle(S.editPlan.days,+id);S.editPlan.days.sort();b.setAttribute('aria-pressed',S.editPlan.days.indexOf(+id)>=0);updSentence();break;
+  case 'freq':S.editPlan.perWeek=+id;document.querySelectorAll('[data-act=freq]').forEach(function(x){x.setAttribute('aria-pressed',x.getAttribute('data-id')===id)});break;
+  case 'tod':S.editPlan.time=id;document.querySelectorAll('[data-act=tod]').forEach(function(x){x.setAttribute('aria-pressed',x.getAttribute('data-id')===id)});break;
+  case 'sup':toggle(S.editPlan.support,+id);b.setAttribute('aria-pressed',S.editPlan.support.indexOf(+id)>=0);break;
+  case 'save':if(!S.editPlan.name.trim()){var n=$('#pname');n.focus();toast('Bitte geben Sie Ihrem Weg eine kurze Bezeichnung.');break}
+    S.editPlan.name=S.editPlan.name.trim();
+    if(!S.plan)S.plan=S.editPlan;else{var keep=S.plan.createdAt;S.plan=S.editPlan;S.plan.createdAt=keep}
+    persist();S.view='home';view();toast('Ihr Plan ist festgehalten.');break;
+  case 'editplan':S.editPlan=JSON.parse(JSON.stringify(S.plan));S.routes=null;S.mode=S.plan.mode;S.view='s4';view();break;
+  case 'confirmopen':S.confirmOpen=true;S.trip={round:false,replaced:null,when:'heute'};view();break;
+  case 'confirmclose':S.confirmOpen=false;view();break;
+  case 'tw':S.trip.when=id;view();break;
+  case 'tr':S.trip.round=id==='1';view();break;
+  case 'trep':S.trip.replaced=id==='yes'?true:id==='no'?false:null;view();break;
+  case 'confirm':var d=new Date();if(S.trip.when==='gestern')d.setDate(d.getDate()-1);
+    S.trips.push({date:d.toISOString(),round:S.trip.round,replaced:S.trip.replaced});S.confirmOpen=false;persist();view();toast('Geschafft – Sie haben Ihren Alltagsplan umgesetzt.');break;
+  case 'deltrip':S.trips.splice(+id,1);persist();view();break;
+  case 'pausetoggle':var k=weekKey(new Date());toggle(S.paused,k);persist();view();toast(isPaused(k)?'Diese Woche ist pausiert. Ihre Serie bleibt erhalten.':'Weiter geht’s.');break;
+  case 'adj':if(id==='kuerzer'){S.mode=S.plan.mode;S.bisher=S.plan.bisher;S.goals=S.plan.goals.slice();S.ownGoal=S.plan.ownGoal;S.editPlan=null;S.view='s2';view();toast('Wählen Sie ein näheres Ziel.')}
+    else if(id==='pause'){var wk=weekKey(new Date());if(!isPaused(wk))S.paused.push(wk);persist();view();toast('Diese Woche ist pausiert. Ihre Serie bleibt erhalten.')}
+    else{S.editPlan=JSON.parse(JSON.stringify(S.plan));if(id==='seltener')S.editPlan.perWeek=Math.max(1,S.editPlan.perWeek-1);if(id==='begleitung'&&S.editPlan.support.indexOf(0)<0)S.editPlan.support.push(0);S.routes=null;S.view='s4';view();toast(id==='zeit'?'Wählen Sie einen anderen Zeitpunkt.':'Ihr Plan ist angepasst – bitte prüfen und festhalten.')}break;
+  case 'ics':try{var blob=new Blob([makeICS()],{type:'text/calendar'});var u=URL.createObjectURL(blob);var x=document.createElement('a');x.href=u;x.download='alltagsweg.ics';document.body.appendChild(x);x.click();x.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast('Kalendereintrag erstellt – öffnen Sie die Datei, um ihn zu übernehmen.')}catch(e){toast('Der Download ist hier nicht möglich.')}break;
+  case 'wipe':wipe();S.view='start';view();toast('Alle Eingaben wurden gelöscht.');break;
+ }
+});
+/* Navigation in Schritt 1/3 → Plan vorbereiten */
+var _view=view;view=function(){if(S.view==='s4'){if(!S.editPlan)S.editPlan=S.plan?Object.assign(JSON.parse(JSON.stringify(S.plan)),fromRoute()):newPlan();else Object.assign(S.editPlan,fromRoute())}if(S.view!=='s4'&&S.view!=='s3'&&S.view!=='s2')S.editPlan=S.view==='home'?null:S.editPlan;_view()};
+function fromRoute(){var r=S.routes&&S.routes[S.chosen];if(!r)return {};return {mode:S.mode,distKm:Math.round(r.distance/100)/10,durMin:mins(r.duration),ascent:r.ascent,bisher:S.bisher||(S.plan&&S.plan.bisher)||'neu',demo:S.demo}}
+function updSentence(){var p=S.editPlan,el=$('#sentence');if(!el)return;var days=p.days.length?p.days.map(function(d){return DAYNAMES[d]}).join(' und '):'[Wochentag]';
+ el.innerHTML='Am <em>'+esc(days)+'</em> '+(S.mode==='bike'?'fahre':'gehe')+' ich <em>'+esc(p.name||'[Alltagsweg]')+'</em> '+(S.mode==='bike'?'mit dem Velo':'zu Fuss')+'.'}
+
+/* Eingaben */
+var acCache={},acT=null;
+document.addEventListener('input',function(ev){var t=ev.target;
+ var bind=t.getAttribute('data-bind');
+ if(bind){if(bind.indexOf('plan.')===0){S.editPlan[bind.slice(5)]=t.value;updSentence()}else S[bind]=t.value;
+   if(bind==='timeOwn'&&t.value)document.querySelectorAll('[data-act=time]').forEach(function(x){x.setAttribute('aria-pressed','false')});return}
+ var k=t.getAttribute('data-place');if(!k)return;S[k]=null;$('#pk-'+k).textContent='';
+ var q=t.value.trim(),list=$('#ac-'+k);clearTimeout(acT);if(q.length<3){list.hidden=true;return}
+ acT=setTimeout(function(){searchPlaces(q).then(function(res){acCache[k]=res;
+   list.innerHTML=res.length?res.map(function(r,i){return '<li><button type="button" data-act="ac" data-k="'+k+'" data-id="'+i+'">'+esc(r.label)+'</button></li>'}).join(''):'<li class="small" style="padding:10px">Keine Treffer. Versuchen Sie Strasse und Ort.</li>';list.hidden=false})
+   .catch(function(){list.innerHTML='<li class="err" style="padding:10px">Die Adresssuche ist gerade nicht erreichbar.</li>';list.hidden=false})},350)});
+
+window.__alltagsweg={weekKey:weekKey,shiftWeek:shiftWeek,toLV95:toLV95,fromLV95:fromLV95,recommend:recommend,S:S,streak:streak};
+view();
+})();
+</script>
+
+</body>
+</html>
